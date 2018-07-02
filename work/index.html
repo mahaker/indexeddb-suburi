@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+
+<head>
+</head>
+
+<body>
+  <h1>インデックスDB</h1>
+  <div>
+    userId&nbsp;<input type="text" id="userId">
+    <br> 
+    name&nbsp;<input type="text" id="name">
+    <br>
+    modified name&nbsp;<input type="text" id="modified-name">
+  </div>
+
+  <div>
+    <button onclick="saveUserData()">save</button>
+    <button onclick="getUsers()">view</button>
+    <button onclick="updateUserName()">update</button>
+    <button onclick="deleteUser()">delete</button>
+  </div>
+</body>
+<script>
+  let database;
+  let indexedDb = window.indexedDB;
+
+  const firstData = [
+    { "userId": "12345", "name": "student1" },
+    { "userId": "12346", "name": "student2" },
+    { "userId": "12347", "name": "student3" },
+    { "userId": "12348", "name": "student4" }
+  ];
+
+  if (indexedDb) {
+    indexedDb.deleteDatabase("users");
+    let openRequest = indexedDb.open('users', 3);
+    openRequest.onerror = function (event) {
+      console.log("onerror");
+      console.log(event);
+    }
+    openRequest.onsuccess = function (event) {
+      console.log("onsuccess");
+    }
+    openRequest.onupgradeneeded = function (event) {
+      // IDBDatabase インターフェイスに保存します
+      let db = event.target.result;
+      database = db;
+      // このデータベース用の objectStore を作成します
+      let objectStore = database.createObjectStore("users", { keyPath: "userId" });
+
+      // データを追加する前に objectStore の作成を完了させるため、 
+      // transaction oncomplete を使用します。
+      objectStore.transaction.oncomplete = function (event) {
+        // 新たに作成した objectStore に値を保存します。
+        let userObjectStore = database.transaction("users", "readwrite").objectStore("users");
+        for (let i in firstData) {
+          userObjectStore.add(firstData[i]);
+        }
+      };
+    }
+  }
+
+  const saveUserData = function () {
+    const userId = getUserId();
+    const name = getName();
+    const value = { "userId": userId, "name": name };
+    console.log(value.toString());
+
+    let transaction = database.transaction(["users"], "readwrite");
+    const objectStore = transaction.objectStore("users");
+    {
+      const request = objectStore.add(value);
+      request.onsuccess = function (event) {
+        console.log("success");
+      }
+    }
+
+    // トランザクション完了時の処理を設定
+    transaction.oncomplete = function (event) {
+      console.log("completed.");
+    }
+    // エラー処理
+    transaction.onerror = function (event) {
+      console.log("error");
+    }
+  }
+
+  const getUsers = function () {
+    const userId = getUserId();
+    let transaction = database.transaction(["users"]);
+    let objectStore = transaction.objectStore("users");
+    let request = objectStore.get(userId);
+
+    request.onerror = function(event) {
+      console.log("error");
+    }
+    request.onsuccess = function(event) {
+      const result = request.result;
+      if(!result) {
+        console.log("user is not empty.");
+        return;
+      }
+      console.log(`userId: ${result.userId}, name: ${result.name}`);
+    }
+  }
+
+  const updateUserName = function() {
+    const userId = getUserId();
+    const modifiedName = getModifiedName();
+    let transaction = database.transaction(["users"], "readwrite");
+    let objectStore = transaction.objectStore("users");
+    let request = objectStore.get(userId);
+    request.onerror = function(event) {
+      console.log("error");
+    }
+    request.onsuccess = function(event) {
+      const user = request.result;
+      user.name = modifiedName;
+
+      const requestUpdate = objectStore.put(user);
+      requestUpdate.onerror = function(event) {
+        console.log("error");
+      }
+      requestUpdate.onsuccess = function(event) {
+        console.log("success");
+      }
+    }
+  }
+
+  const deleteUser = function() {
+    const userId = getUserId();
+    let transaction = database.transaction(["users"], "readwrite");
+    let objectStore = transaction.objectStore("users");
+    let request = objectStore.delete(userId);
+
+    request.onerror = function(event) {
+      console.log("error");
+    }
+    request.onsuccess = function(event) {
+      console.log("deleted.");
+    }
+  }
+
+  const getUserId = function() {
+    return document.getElementById("userId").value;
+  }
+  const getName = function() {
+    return document.getElementById("name").value;
+  }
+  const getModifiedName = function() {
+    return document.getElementById("modified-name").value;
+  }
+</script>
+
+</html>
